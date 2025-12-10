@@ -9,7 +9,7 @@ export function rollDice(): number {
  * Calcula a soma dos valores dos dados
  */
 export function calculateDiceSum(diceValues: (number | null)[]): number {
-  return diceValues.reduce((sum, value) => {
+  return diceValues.reduce((sum: number, value) => {
     return sum + (value ?? 0);
   }, 0);
 }
