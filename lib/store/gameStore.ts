@@ -51,6 +51,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  setDiceValue: (index: number, value: number) => {
+    const { diceValues } = get();
+    const newDiceValues = [...diceValues];
+    newDiceValues[index] = value;
+    
+    const newDiceSum = calculateDiceSum(newDiceValues);
+    
+    set({
+      diceValues: newDiceValues,
+      diceSum: newDiceSum,
+    });
+
+    // Calcular preços dos produtos quando todos os dados forem rolados
+    if (newDiceValues.every((value) => value !== null)) {
+      const productsData = calculateProductPrices(newDiceSum);
+      set({ productsData });
+    }
+  },
+
   selectProduct: (productName: string) => {
     const { selectedProducts } = get();
     if (!selectedProducts.includes(productName)) {

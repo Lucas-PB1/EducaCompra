@@ -31,6 +31,7 @@ export interface GameActions {
   setPlayerName: (name: string) => void;
   setCurrentScreen: (screen: Screen) => void;
   rollDice: (index: number) => void;
+  setDiceValue: (index: number, value: number) => void;
   selectProduct: (productName: string) => void;
   deselectProduct: (productName: string) => void;
   updateAnswer: (key: keyof Answers, value: Answers[keyof Answers]) => void;

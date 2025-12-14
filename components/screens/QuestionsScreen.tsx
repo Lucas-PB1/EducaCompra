@@ -4,23 +4,17 @@ import React from 'react';
 import { useGameStore } from '@/lib/store/gameStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { calculateTotalPrice } from '@/lib/utils/products';
 
 export const QuestionsScreen: React.FC = () => {
   const {
-    diceSum,
-    selectedProducts,
-    productsData,
     answers,
     updateAnswer,
     setCurrentScreen,
   } = useGameStore();
 
-  const totalGasto = calculateTotalPrice(selectedProducts, productsData);
-
   const handleNext = () => {
     if (!answers.aprendeu || !answers.aprendeu.trim()) {
-      alert('⚠️ Por favor, responda a última pergunta sobre o que você aprendeu!');
+      alert('⚠️ Por favor, responda a última pergunta sobre tudo o que você aprendeu!');
       return;
     }
     setCurrentScreen('result');
@@ -41,9 +35,7 @@ export const QuestionsScreen: React.FC = () => {
           <Input
             type="number"
             min="0"
-            step="0.01"
             placeholder="R$"
-            value={answers.dinheiroTotal ?? diceSum}
             onChange={(e) =>
               updateAnswer('dinheiroTotal', parseFloat(e.target.value) || 0)
             }
@@ -58,9 +50,7 @@ export const QuestionsScreen: React.FC = () => {
           <Input
             type="number"
             min="0"
-            step="0.01"
             placeholder="R$"
-            value={answers.gastou ?? totalGasto}
             onChange={(e) =>
               updateAnswer('gastou', parseFloat(e.target.value) || 0)
             }
@@ -90,9 +80,7 @@ export const QuestionsScreen: React.FC = () => {
             <Input
               type="number"
               min="0"
-              step="0.01"
               placeholder="Se sim, quanto? R$"
-              value={answers.sobrouValor ?? 0}
               onChange={(e) =>
                 updateAnswer('sobrouValor', parseFloat(e.target.value) || 0)
               }
@@ -124,13 +112,12 @@ export const QuestionsScreen: React.FC = () => {
             <Input
               type="number"
               min="0"
-              step="0.01"
               placeholder={
                 answers.faltou === 'Sim, faltou R$'
                   ? 'Quanto faltou? R$'
                   : 'Quanto sobrou? R$'
               }
-              value={answers.faltouValor ?? 0}
+             
               onChange={(e) =>
                 updateAnswer('faltouValor', parseFloat(e.target.value) || 0)
               }
@@ -146,7 +133,6 @@ export const QuestionsScreen: React.FC = () => {
           <textarea
             className="w-full px-4 py-3 text-lg rounded-2xl border-4 border-primary-yellow focus:outline-none focus:border-primary-pink transition-colors min-h-[100px]"
             placeholder="Escreva aqui o que você aprendeu..."
-            value={answers.aprendeu}
             onChange={(e) => updateAnswer('aprendeu', e.target.value)}
           />
         </div>
