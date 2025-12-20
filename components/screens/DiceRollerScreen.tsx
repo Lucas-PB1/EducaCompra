@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '@/lib/store/gameStore';
 import { BallTable } from '@/components/ui/BallTable';
-import { AnimatedBall } from '@/components/ui/AnimatedBall';
 import { Button } from '@/components/ui/Button';
 import { allDiceRolled } from '@/lib/utils/dice';
 import { rollDice } from '@/lib/utils/dice';
@@ -11,57 +10,111 @@ import { rollDice } from '@/lib/utils/dice';
 export const DiceRollerScreen: React.FC = () => {
   const { playerName, diceValues, diceSum, setDiceValue, setCurrentScreen } =
     useGameStore();
-
-  const [holePositions, setHolePositions] = useState<Map<number, { x: number; y: number }[]>>(new Map());
-  const [currentBallIndex, setCurrentBallIndex] = useState<number | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [selectedHole, setSelectedHole] = useState<number | null>(null);
-  const [ballTarget, setBallTarget] = useState<{ value: number; position: { x: number; y: number } } | null>(null);
-
-  const handleHolePositionsReady = useCallback((positions: Map<number, { x: number; y: number }[]>) => {
-    setHolePositions(positions);
-  }, []);
-
-  const handleRollBall = () => {
-    const nextIndex = diceValues.findIndex((value) => value === null);
+  
+  // Helpers to create initial grid
+  const createGrid = (): number[][] => {
+    // 5x5 Grid = 25 slots
+    // 6 numbers * 4 = 24 slots, +1 random = 25
+    const allValues: number[] = [];
     
-    if (nextIndex === -1 || isAnimating || holePositions.size === 0) {
-      return;
+    // Add 4 of each number (1-6)
+    for (let i = 1; i <= 6; i++) {
+        for (let k = 0; k < 4; k++) {
+            allValues.push(i);
+        }
+    }
+    // Add 1 random extra number to complete 25
+    allValues.push(Math.floor(Math.random() * 6) + 1);
+
+    // Shuffle
+    for (let i = allValues.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allValues[i], allValues[j]] = [allValues[j], allValues[i]];
     }
 
-    // Selecionar um buraco aleatório (valor de 1 a 6)
-    const randomValue = rollDice();
-    const positions = holePositions.get(randomValue);
-
-    if (!positions || positions.length === 0) {
-      return;
+    // Create 5x5 grid
+    const grid: number[][] = [];
+    for (let row = 0; row < 5; row++) {
+      const rowValues: number[] = [];
+      for (let col = 0; col < 5; col++) {
+        rowValues.push(allValues[row * 5 + col]);
+      }
+      grid.push(rowValues);
     }
-
-    // Selecionar uma posição aleatória entre os buracos com esse valor
-    const randomPosition = positions[Math.floor(Math.random() * positions.length)];
-
-    setIsAnimating(true);
-    setCurrentBallIndex(nextIndex);
-    setSelectedHole(randomValue);
-    setBallTarget({ value: randomValue, position: randomPosition });
+    return grid;
   };
 
-  const handleBallComplete = useCallback((value: number) => {
-    if (currentBallIndex === null) return;
+  const [grid] = useState<number[][]>(createGrid());
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  const handleRollBall = () => {
+    const nextIndex = diceValues.findIndex((value) => value === null);
+    if (nextIndex === -1 || isAnimating) return;
 
-    setDiceValue(currentBallIndex, value);
-    setIsAnimating(false);
-    setSelectedHole(null);
-    setBallTarget(null);
-    setCurrentBallIndex(null);
-  }, [currentBallIndex, setDiceValue]);
+    setIsAnimating(true);
+    
+    // 1. Decide the result
+    const resultValue = rollDice();
+
+    // 2. Find valid positions for this result
+    const validKeys: string[] = [];
+    const otherKeys: string[] = [];
+
+    grid.forEach((row, rowIndex) => {
+      row.forEach((val, colIndex) => {
+        const key = `${val}-${rowIndex}-${colIndex}`;
+        if (val === resultValue) {
+          validKeys.push(key);
+        } else {
+          otherKeys.push(key);
+        }
+      });
+    });
+
+    // 3. Pick a winner key
+    const targetKey = validKeys[Math.floor(Math.random() * validKeys.length)];
+
+    // 4. Create animation sequence (decoys -> winner)
+    // "Silvio Santos" style: flashes random numbers before stopping
+    const sequenceLength = 8; // Number of flashes (Reduced from 15)
+    const sequence: string[] = [];
+    
+    for (let i = 0; i < sequenceLength; i++) {
+      // flash mostly random keys, or can mix in some nearby cells
+      sequence.push(otherKeys[Math.floor(Math.random() * otherKeys.length)]);
+    }
+    sequence.push(targetKey);
+
+    // 5. Run animation
+    let step = 0;
+    const intervalTime = 400; // Speed of flashes (Slower, increased from 150)
+
+    const interval = setInterval(() => {
+      if (step >= sequence.length) {
+        clearInterval(interval);
+        // End of animation
+        setTimeout(() => {
+          setDiceValue(nextIndex, resultValue);
+          setIsAnimating(false);
+          setActiveKey(null);
+        }, 1000); // Keep lit for 1 second
+        return;
+      }
+
+      setActiveKey(sequence[step]);
+      
+      // Play sound effect here if available?
+      step++;
+    }, intervalTime);
+  };
 
   const handleContinue = () => {
     setCurrentScreen('shopping');
   };
 
   const allRolled = allDiceRolled(diceValues);
-  const canRoll = !isAnimating && !allRolled && holePositions.size > 0;
+  const canRoll = !isAnimating && !allRolled;
   const remainingBalls = diceValues.filter((v) => v === null).length;
 
   return (
@@ -70,31 +123,21 @@ export const DiceRollerScreen: React.FC = () => {
         Olá, {playerName}! 👋
       </h1>
       <p className="text-xl md:text-2xl text-primary-teal mb-4">
-        Jogue as bolinhas para ganhar dinheiro! 🎱
+        Tente a sorte para ganhar dinheiro! 🎰
       </p>
 
       {remainingBalls > 0 && (
         <p className="text-lg text-gray-600 mb-4">
-          {remainingBalls} bolinha{remainingBalls > 1 ? 's' : ''} restante{remainingBalls > 1 ? 's' : ''}
+           {remainingBalls} tentativa{remainingBalls > 1 ? 's' : ''} restante{remainingBalls > 1 ? 's' : ''}
         </p>
       )}
 
       <div className="flex-1 flex items-center justify-center mb-8">
         <BallTable
-          selectedHole={selectedHole}
-          isAnimating={isAnimating}
-          onHolePositionsReady={handleHolePositionsReady}
+          grid={grid}
+          activeKey={activeKey}
         />
       </div>
-
-      {ballTarget && currentBallIndex !== null && (
-        <AnimatedBall
-          isActive={isAnimating}
-          targetHole={ballTarget.value}
-          targetPosition={ballTarget.position}
-          onComplete={handleBallComplete}
-        />
-      )}
 
       {diceSum > 0 && (
         <div className="mb-8 p-6 bg-primary-teal/20 rounded-3xl border-4 border-primary-teal">
@@ -116,11 +159,11 @@ export const DiceRollerScreen: React.FC = () => {
             fullWidth
             disabled={!canRoll}
           >
-            🎱 Jogar Bolinha
+            🎰 Tentar a Sorte
           </Button>
           {!canRoll && !allRolled && (
             <p className="text-lg text-gray-600">
-              💡 Jogue todas as 5 bolinhas para continuar!
+              💡 Boa sorte!
             </p>
           )}
         </div>

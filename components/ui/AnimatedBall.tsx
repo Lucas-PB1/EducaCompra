@@ -29,154 +29,53 @@ export const AnimatedBall: React.FC<AnimatedBallProps> = ({
     }
 
     const animateBall = async () => {
-      // Posição inicial (topo da tela, posição aleatória horizontal)
+      // Posição inicial (topo da tela)
       const startX = Math.random() * (window.innerWidth - 100) + 50;
-      const startY = -50;
-      
+      const startY = -100; // Começar um pouco mais acima
+
       setInitialPosition({ x: startX, y: startY });
       setIsVisible(true);
 
-      // Movimento intermediário (balanço 3D)
-      const midX1 = startX + (Math.random() - 0.5) * 200;
-      const midX2 = midX1 + (Math.random() - 0.5) * 150;
-      const midY = window.innerHeight * 0.3;
-
-      // Posição final antes dos quiques
-      const finalY = targetPosition.y;
-
-      // Inicializar posição e visibilidade
-      await controls.start({
+      // 1. Resetar e aparecer
+      await controls.set({
         x: startX,
         y: startY,
+        scale: 0.5,
+        opacity: 0,
+        rotateZ: 0,
+      });
+
+      // 2. Aparecer suavemente
+      await controls.start({
         scale: 1,
         opacity: 1,
-        rotateX: 0,
-        rotateY: 0,
-        rotateZ: 0,
-        z: 0,
-        transition: { duration: 0 },
+        transition: { duration: 0.3 }
       });
 
-      // Queda inicial com balanço e rotação 3D
+      // 3. Mover para o alvo com efeito de mola dinâmico
       await controls.start({
-        x: [startX, midX1, midX2, targetPosition.x],
-        y: [startY, midY, midY + 50, finalY],
-        scale: [1, 1.2, 1.1, 1],
-        rotateZ: [0, 180, 360, 540],
-        rotateY: [0, 90, 180, 270],
-        z: [0, 50, 30, 0],
+        x: targetPosition.x,
+        y: targetPosition.y,
+        rotateZ: 360 * 2, // Girar 2 vezes enquanto cai
         transition: {
-          duration: 1.2,
-          ease: [0.4, 0, 0.2, 1],
-          times: [0, 0.3, 0.6, 1],
-        },
+          type: "spring",
+          damping: 15,
+          stiffness: 80,
+          mass: 1,
+          duration: 1.5 // Fallback duration
+        }
       });
 
-      // Primeiro quique grande com rotação
-      const bounce1Height = 50;
+      // 4. Efeito de "chegada" (pulso)
       await controls.start({
-        y: finalY - bounce1Height,
-        scale: 1.1,
-        rotateZ: 720,
-        z: 20,
-        transition: {
-          duration: 0.3,
-          ease: [0.68, -0.55, 0.265, 1.55],
-        },
+        scale: [1, 1.2, 0],
+        opacity: [1, 1, 0],
+        transition: { duration: 0.4, times: [0, 0.5, 1] }
       });
 
-      // Queda do primeiro quique
-      await controls.start({
-        y: finalY - 8,
-        scale: 0.95,
-        rotateZ: 900,
-        z: 0,
-        transition: {
-          duration: 0.25,
-          ease: [0.4, 0, 0.2, 1],
-        },
-      });
-
-      // Segundo quique médio
-      const bounce2Height = 30;
-      await controls.start({
-        y: finalY - bounce2Height,
-        scale: 1.05,
-        rotateZ: 1080,
-        z: 15,
-        transition: {
-          duration: 0.22,
-          ease: [0.68, -0.55, 0.265, 1.55],
-        },
-      });
-
-      // Queda do segundo quique
-      await controls.start({
-        y: finalY - 4,
-        scale: 0.97,
-        rotateZ: 1260,
-        z: 0,
-        transition: {
-          duration: 0.18,
-          ease: [0.4, 0, 0.2, 1],
-        },
-      });
-
-      // Terceiro quique pequeno
-      const bounce3Height = 15;
-      await controls.start({
-        y: finalY - bounce3Height,
-        scale: 1.02,
-        rotateZ: 1440,
-        z: 8,
-        transition: {
-          duration: 0.15,
-          ease: [0.68, -0.55, 0.265, 1.55],
-        },
-      });
-
-      // Queda do terceiro quique
-      await controls.start({
-        y: finalY - 2,
-        scale: 0.98,
-        rotateZ: 1620,
-        z: 0,
-        transition: {
-          duration: 0.12,
-          ease: [0.4, 0, 0.2, 1],
-        },
-      });
-
-      // Quarto quique muito pequeno
-      const bounce4Height = 6;
-      await controls.start({
-        y: finalY - bounce4Height,
-        scale: 1.01,
-        rotateZ: 1800,
-        z: 4,
-        transition: {
-          duration: 0.1,
-          ease: [0.68, -0.55, 0.265, 1.55],
-        },
-      });
-
-      // Finalização no buraco com rotação final
-      await controls.start({
-        y: finalY,
-        scale: 0.85,
-        rotateZ: 1980,
-        z: 0,
-        transition: {
-          duration: 0.15,
-          ease: 'easeIn',
-        },
-      });
-
-      // Pequeno delay antes de chamar onComplete
-      setTimeout(() => {
-        onComplete(targetHole);
-        setIsVisible(false);
-      }, 200);
+      // Finalizar
+      onComplete(targetHole);
+      setIsVisible(false);
     };
 
     animateBall();
@@ -187,19 +86,25 @@ export const AnimatedBall: React.FC<AnimatedBallProps> = ({
   return (
     <motion.div
       animate={controls}
-      className="fixed z-[100] pointer-events-none"
+      className="fixed z-[100] pointer-events-none flex items-center justify-center"
       style={{
         left: 0,
         top: 0,
         width: 40,
         height: 40,
         borderRadius: '50%',
-        background: 'radial-gradient(circle at 30% 30%, #FF6B6B, #C92A2A)',
-        boxShadow: '0 6px 12px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(0,0,0,0.4), 0 0 20px rgba(255, 107, 107, 0.3)',
+        background: 'radial-gradient(circle at 30% 30%, #ff4d4d, #cc0000)',
+        boxShadow: '0 6px 12px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(0,0,0,0.4), 0 0 20px rgba(255, 77, 77, 0.3)',
         transformStyle: 'preserve-3d',
         perspective: '1000px',
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: '20px',
+        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
       }}
-    />
+    >
+      5
+    </motion.div>
   );
 };
 
